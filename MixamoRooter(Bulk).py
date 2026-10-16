@@ -1,10 +1,10 @@
 bl_info = {
     "name": "MixamoRooter (Bulk)",
     "author": "Erfan",
-    "version": (2, 1),
+    "version": (2, 4),
     "blender": (4, 0, 0),
     "location": "View3D > Sidebar > MixamoRooter",
-    "description": "Batch process Mixamo characters and animations with proper root motion and channel mapping for Unreal Engine 5",
+    "description": "Batch process Mixamo characters and animations with proper root motion for UE5 without data duplication",
     "category": "Animation",
 }
 
@@ -43,9 +43,9 @@ class MIXAMO_OT_BatchProcessCharacters(Operator):
             bpy.ops.import_scene.fbx(filepath=filepath)
             
             # Find Armature
-            armature = next((obj for obj in bpy.scene.objects if obj.type == 'ARMATURE'), None)
+            armature = next((obj for obj in context.scene.objects if obj.type == 'ARMATURE'), None)
             if armature:
-                bpy.view_layer.objects.active = armature
+                context.view_layer.objects.active = armature
                 bpy.ops.object.mode_set(mode='EDIT')
                 edit_bones = armature.data.edit_bones
                 
@@ -107,9 +107,9 @@ class MIXAMO_OT_BatchProcessAnimations(Operator):
             bpy.ops.import_scene.fbx(filepath=filepath)
             
             # Find Armature
-            armature = next((obj for obj in bpy.scene.objects if obj.type == 'ARMATURE'), None)
+            armature = next((obj for obj in context.scene.objects if obj.type == 'ARMATURE'), None)
             if armature:
-                bpy.view_layer.objects.active = armature
+                context.view_layer.objects.active = armature
                 
                 # 1. Edit Mode: Create Root Bone
                 bpy.ops.object.mode_set(mode='EDIT')
@@ -159,7 +159,7 @@ class MIXAMO_OT_BatchProcessAnimations(Operator):
                             for pt in fc_hips_z.keyframe_points:
                                 fc_root_y.keyframe_points.insert(pt.co[0], pt.co[1])
                             fc_hips_z.keyframe_points.clear()
-                            fc_root_z.keyframe_points.insert(0.0, 0.0)
+                            fc_hips_z.keyframe_points.insert(0.0, 0.0)
                             
                         action.update_tag()
                         
@@ -184,7 +184,7 @@ class MIXAMO_OT_BatchProcessAnimations(Operator):
 
 class VIEW3D_PT_MixamoRootPanel(Panel):
     bl_label = "MixamoRooter (Bulk)"
-    bl_idname = "VIEW3D_PT_Mixamo_root_panel"
+    bl_idname = "VIEW3D_PT_mixamo_root_panel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "MixamoRooter"
