@@ -1,9 +1,9 @@
 bl_info = {
-    "name": "MaxamoRooter (Bulk)",
+    "name": "MixamoRooter (Bulk)",
     "author": "Erfan",
     "version": (2, 1),
     "blender": (4, 0, 0),
-    "location": "View3D > Sidebar > MaxamoRooter",
+    "location": "View3D > Sidebar > MixamoRooter",
     "description": "Batch process Mixamo characters and animations with proper root motion and channel mapping for Unreal Engine 5",
     "category": "Animation",
 }
@@ -182,12 +182,12 @@ class MIXAMO_OT_BatchProcessAnimations(Operator):
         return {'FINISHED'}
 
 
-class VIEW3D_PT_MaxamoRootPanel(Panel):
-    bl_label = "MaxamoRooter (Bulk)"
-    bl_idname = "VIEW3D_PT_maxamo_root_panel"
+class VIEW3D_PT_MixamoRootPanel(Panel):
+    bl_label = "MixamoRooter (Bulk)"
+    bl_idname = "VIEW3D_PT_Mixamo_root_panel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = "MaxamoRooter"
+    bl_category = "MixamoRooter"
 
     def draw(self, context):
         layout = self.layout
@@ -210,7 +210,7 @@ class VIEW3D_PT_MaxamoRootPanel(Panel):
 classes = (
     MIXAMO_OT_BatchProcessCharacters,
     MIXAMO_OT_BatchProcessAnimations,
-    VIEW3D_PT_MaxamoRootPanel,
+    VIEW3D_PT_MixamoRootPanel,
 )
 
 def register():
