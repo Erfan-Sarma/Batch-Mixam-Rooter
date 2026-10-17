@@ -1,9 +1,9 @@
 bl_info = {
-    "name": "MixamoRooter (Bulk)",
-    "author": "Erfan",
-    "version": (2, 8),
+    "name": "BatchMixamoRooter",
+    "author": "Erfan-Sarma",
+    "version": (3, 0),
     "blender": (4, 0, 0),
-    "location": "View3D > Sidebar > MixamoRooter",
+    "location": "View3D > Sidebar > BatchMixamoRooter",
     "description": "Batch process Mixamo characters and animations with proper root motion and seamless hip loop fixing for UE5",
     "category": "Animation",
 }
@@ -15,7 +15,7 @@ from bpy.types import Operator, Panel
 
 class MIXAMO_OT_BatchProcessCharacters(Operator):
     bl_idname = "mixamo.batch_process_characters"
-    bl_label = "Bulk Fix Characters"
+    bl_label = "Batch Fix Characters"
     bl_description = "Select multiple Mixamo character FBX files to inject root bones and export cleanly"
 
     directory: StringProperty(subtype='DIR_PATH')
@@ -26,7 +26,7 @@ class MIXAMO_OT_BatchProcessCharacters(Operator):
         return {'RUNNING_MODAL'}
 
     def execute(self, context):
-        out_dir = context.scene.mixamo_output_dir
+        out_dir = context.scene.batch_mixamo_output_dir
         if not out_dir:
             self.report({'ERROR'}, "Please select an Output Directory first!")
             return {'CANCELLED'}
@@ -81,7 +81,7 @@ class MIXAMO_OT_BatchProcessCharacters(Operator):
 
 class MIXAMO_OT_BatchProcessAnimations(Operator):
     bl_idname = "mixamo.batch_process_animations"
-    bl_label = "Bulk Fix Animations"
+    bl_label = "Batch Fix Animations"
     bl_description = "Select multiple Mixamo animation FBX files to add root motion cleanly with seamless hip looping"
 
     directory: StringProperty(subtype='DIR_PATH')
@@ -92,7 +92,7 @@ class MIXAMO_OT_BatchProcessAnimations(Operator):
         return {'RUNNING_MODAL'}
 
     def execute(self, context):
-        out_dir = context.scene.mixamo_output_dir
+        out_dir = context.scene.batch_mixamo_output_dir
         if not out_dir:
             self.report({'ERROR'}, "Please select an Output Directory first!")
             return {'CANCELLED'}
@@ -204,41 +204,41 @@ class MIXAMO_OT_BatchProcessAnimations(Operator):
         return {'FINISHED'}
 
 
-class VIEW3D_PT_MixamoRootPanel(Panel):
-    bl_label = "MixamoRooter (Bulk)"
-    bl_idname = "VIEW3D_PT_mixamo_root_panel"
+class VIEW3D_PT_BatchMixamoRootPanel(Panel):
+    bl_label = "BatchMixamoRooter"
+    bl_idname = "VIEW3D_PT_batch_mixamo_root_panel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = "MixamoRooter"
+    bl_category = "BatchMixamoRooter"
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
         
         layout.label(text="Output Directory", icon='FILE_FOLDER')
-        layout.prop(scene, "mixamo_output_dir", text="")
+        layout.prop(scene, "batch_mixamo_output_dir", text="")
         
         layout.separator()
         
-        layout.label(text="Bulk Batch Processing", icon='AUTOMERGE_ON')
+        layout.label(text="Batch Processing", icon='AUTOMERGE_ON')
         
         row = layout.row(align=True)
-        row.operator("mixamo.batch_process_characters", icon='OUTLINER_OB_MESH', text="Bulk Fix Characters")
+        row.operator("mixamo.batch_process_characters", icon='OUTLINER_OB_MESH', text="Batch Fix Characters")
         
         row = layout.row(align=True)
-        row.operator("mixamo.batch_process_animations", icon='ANIM', text="Bulk Fix Animations")
+        row.operator("mixamo.batch_process_animations", icon='ANIM', text="Batch Fix Animations")
 
 
 classes = (
     MIXAMO_OT_BatchProcessCharacters,
     MIXAMO_OT_BatchProcessAnimations,
-    VIEW3D_PT_MixamoRootPanel,
+    VIEW3D_PT_BatchMixamoRootPanel,
 )
 
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
-    bpy.types.Scene.mixamo_output_dir = StringProperty(
+    bpy.types.Scene.batch_mixamo_output_dir = StringProperty(
         name="Output Directory",
         subtype='DIR_PATH',
         description="Select folder where processed FBX files will be saved"
@@ -247,7 +247,7 @@ def register():
 def unregister():
     for cls in classes:
         bpy.utils.unregister_class(cls)
-    del bpy.types.Scene.mixamo_output_dir
+    del bpy.types.Scene.batch_mixamo_output_dir
 
 if __name__ == "__main__":
     register()
