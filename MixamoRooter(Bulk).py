@@ -1,10 +1,10 @@
 bl_info = {
     "name": "MixamoRooter (Bulk)",
     "author": "Erfan",
-    "version": (2, 4),
+    "version": (2, 8),
     "blender": (4, 0, 0),
     "location": "View3D > Sidebar > MixamoRooter",
-    "description": "Batch process Mixamo characters and animations with proper root motion for UE5 without data duplication",
+    "description": "Batch process Mixamo characters and animations with proper root motion and seamless hip loop fixing for UE5",
     "category": "Animation",
 }
 
@@ -35,9 +35,9 @@ class MIXAMO_OT_BatchProcessCharacters(Operator):
         for file_elem in self.files:
             filepath = os.path.join(self.directory, file_elem.name)
             
-            # Clear current scene objects
-            bpy.ops.object.select_all(action='SELECT')
-            bpy.ops.object.delete()
+            # Context-safe scene clearing without bpy.ops
+            for obj in list(context.scene.objects):
+                bpy.data.objects.remove(obj, do_unlink=True)
             
             # Import FBX
             bpy.ops.import_scene.fbx(filepath=filepath)
@@ -46,6 +46,8 @@ class MIXAMO_OT_BatchProcessCharacters(Operator):
             armature = next((obj for obj in context.scene.objects if obj.type == 'ARMATURE'), None)
             if armature:
                 context.view_layer.objects.active = armature
+                armature.select_set(True)
+                
                 bpy.ops.object.mode_set(mode='EDIT')
                 edit_bones = armature.data.edit_bones
                 
@@ -80,7 +82,7 @@ class MIXAMO_OT_BatchProcessCharacters(Operator):
 class MIXAMO_OT_BatchProcessAnimations(Operator):
     bl_idname = "mixamo.batch_process_animations"
     bl_label = "Bulk Fix Animations"
-    bl_description = "Select multiple Mixamo animation FBX files to add root motion cleanly without duplication"
+    bl_description = "Select multiple Mixamo animation FBX files to add root motion cleanly with seamless hip looping"
 
     directory: StringProperty(subtype='DIR_PATH')
     files: CollectionProperty(type=bpy.types.OperatorFileListElement)
@@ -99,9 +101,9 @@ class MIXAMO_OT_BatchProcessAnimations(Operator):
         for file_elem in self.files:
             filepath = os.path.join(self.directory, file_elem.name)
             
-            # Clear current scene objects
-            bpy.ops.object.select_all(action='SELECT')
-            bpy.ops.object.delete()
+            # Context-safe scene clearing without bpy.ops
+            for obj in list(context.scene.objects):
+                bpy.data.objects.remove(obj, do_unlink=True)
             
             # Import FBX
             bpy.ops.import_scene.fbx(filepath=filepath)
@@ -110,6 +112,7 @@ class MIXAMO_OT_BatchProcessAnimations(Operator):
             armature = next((obj for obj in context.scene.objects if obj.type == 'ARMATURE'), None)
             if armature:
                 context.view_layer.objects.active = armature
+                armature.select_set(True)
                 
                 # 1. Edit Mode: Create Root Bone
                 bpy.ops.object.mode_set(mode='EDIT')
@@ -126,11 +129,17 @@ class MIXAMO_OT_BatchProcessAnimations(Operator):
                     root_bone.tail = (0.0, 0.0, 1.0)
                     hips_bone.parent = root_bone
                     
-                    # 2. Pose Mode: Map Animation Curves
+                    # 2. Pose Mode: Map Root Motion & Fix Hip Y Loop Snapping
                     bpy.ops.object.mode_set(mode='POSE')
                     action = armature.animation_data.action if armature.animation_data else None
                     
                     if action:
+                        # Lock scene frame range precisely to action range to prevent extra frames
+                        start_f = int(action.frame_range[0])
+                        end_f = int(action.frame_range[1])
+                        context.scene.frame_start = start_f
+                        context.scene.frame_end = end_f
+                        
                         hips_path = f'pose.bones["{hips_name}"].location'
                         root_path = 'pose.bones["root"].location'
                         
@@ -141,6 +150,7 @@ class MIXAMO_OT_BatchProcessAnimations(Operator):
                                 return action.fcurves.find(path, index=index) or action.fcurves.new(path, index=index)
 
                         fc_hips_x = get_or_create_fcurve(hips_path, 0)
+                        fc_hips_y = get_or_create_fcurve(hips_path, 1) # Hips Y location
                         fc_hips_z = get_or_create_fcurve(hips_path, 2)
                         fc_root_x = get_or_create_fcurve(root_path, 0)
                         fc_root_y = get_or_create_fcurve(root_path, 1)
@@ -151,7 +161,7 @@ class MIXAMO_OT_BatchProcessAnimations(Operator):
                             for pt in fc_hips_x.keyframe_points:
                                 fc_root_x.keyframe_points.insert(pt.co[0], pt.co[1])
                             fc_hips_x.keyframe_points.clear()
-                            fc_hips_x.keyframe_points.insert(0.0, 0.0)
+                            fc_hips_x.keyframe_points.insert(float(start_f), 0.0)
                             
                         # Transfer Hips Z -> Root Y
                         if fc_hips_z and len(fc_hips_z.keyframe_points) > 0 and fc_root_y:
@@ -159,15 +169,27 @@ class MIXAMO_OT_BatchProcessAnimations(Operator):
                             for pt in fc_hips_z.keyframe_points:
                                 fc_root_y.keyframe_points.insert(pt.co[0], pt.co[1])
                             fc_hips_z.keyframe_points.clear()
-                            fc_hips_z.keyframe_points.insert(0.0, 0.0)
+                            fc_hips_z.keyframe_points.insert(float(start_f), 0.0)
+                            
+                        # Fix Hips Y location loop snapping (align first and last keyframe values on the hip bone)
+                        if fc_hips_y and len(fc_hips_y.keyframe_points) > 1:
+                            first_val = fc_hips_y.keyframe_points[0].co[1]
+                            fc_hips_y.keyframe_points[-1].co[1] = first_val
                             
                         action.update_tag()
                         
                 bpy.ops.object.mode_set(mode='OBJECT')
                 
-                # Export processed animation FBX (only active action)
+                # Export processed animation FBX with exact frame bounds
                 out_path = os.path.join(out_dir, file_elem.name)
-                bpy.ops.export_scene.fbx(filepath=out_path, use_selection=False, add_leaf_bones=False, bake_anim=True)
+                bpy.ops.export_scene.fbx(
+                    filepath=out_path,
+                    use_selection=False,
+                    add_leaf_bones=False,
+                    bake_anim=True,
+                    bake_anim_use_all_actions=False,
+                    bake_anim_use_nla_strips=False
+                )
                 success_count += 1
 
             # CRUCIAL: Purge imported actions, meshes, and armatures from memory to prevent accumulation
